@@ -24,9 +24,9 @@ ENV/
 Thumbs.db
 
 # Model artifacts (large files)
-models/original/
-models/onnx/
-models/quantized/
+# models/original/
+# models/onnx/
+# models/quantized/
 
 # Results (generated)
 results/*.jtl
