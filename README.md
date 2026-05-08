@@ -1,3 +1,11 @@
+---
+title: AIE494 Image Classification API
+emoji: 🚀
+colorFrom: blue
+colorTo: indigo
+sdk: docker
+pinned: false
+---
 # High-Throughput Image Classification API
 
 โปรเจกต์ API สำหรับจำแนกรูปภาพ (Image Classification) ด้วยโมเดล **MobileNetV2** โดยเน้นความเร็วและประสิทธิภาพสูงด้วย **FastAPI**, **ProcessPoolExecutor** (สำหรับการทำงานแบบ Concurrent) และ **ONNX Runtime** พร้อมกับ **Dynamic Quantization** เพื่อรันบน CPU ได้อย่างรวดเร็ว
