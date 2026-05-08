@@ -36,35 +36,43 @@ def get_model_size_mb(path: str) -> float:
 
 def benchmark_pytorch(image_bytes: bytes, model_dir: str, warmup: int, runs: int):
     """Benchmark original PyTorch model."""
-    from transformers import AutoModelForImageClassification
-    import torch
+    try:
+        from transformers import AutoModelForImageClassification
+        import torch
 
-    sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-    from app.inference import preprocess_image
+        # Force current dir into path
+        project_root = os.getcwd()
+        if project_root not in sys.path:
+            sys.path.insert(0, project_root)
+            
+        from app.inference import preprocess_image
 
-    model = AutoModelForImageClassification.from_pretrained(model_dir)
-    model.eval()
+        model = AutoModelForImageClassification.from_pretrained(model_dir)
+        model.eval()
 
-    input_array = preprocess_image(image_bytes)
-    input_tensor = torch.from_numpy(input_array)
+        input_array = preprocess_image(image_bytes, model_dir)
+        input_tensor = torch.from_numpy(input_array)
 
-    # Warm up
-    print(f"  Warming up ({warmup} iterations)...")
-    for _ in range(warmup):
-        with torch.no_grad():
-            model(input_tensor)
+        # Warm up
+        print(f"  Warming up ({warmup} iterations)...")
+        for _ in range(warmup):
+            with torch.no_grad():
+                model(input_tensor)
 
-    # Measure
-    latencies = []
-    print(f"  Benchmarking ({runs} iterations)...")
-    for _ in tqdm(range(runs), desc="  PyTorch"):
-        start = time.perf_counter()
-        with torch.no_grad():
-            model(input_tensor)
-        latencies.append((time.perf_counter() - start) * 1000)
+        # Measure
+        latencies = []
+        print(f"  Benchmarking ({runs} iterations)...")
+        for _ in tqdm(range(runs), desc="  PyTorch"):
+            start = time.perf_counter()
+            with torch.no_grad():
+                model(input_tensor)
+            latencies.append((time.perf_counter() - start) * 1000)
 
-    size_mb = get_model_size_mb(model_dir)
-    return size_mb, latencies
+        size_mb = get_model_size_mb(model_dir)
+        return size_mb, latencies
+    except Exception as e:
+        print(f"  ERROR Benchmarking PyTorch: {e}")
+        return None, None
 
 
 def benchmark_onnx(image_bytes: bytes, model_path: str, warmup: int, runs: int):
@@ -76,7 +84,10 @@ def benchmark_onnx(image_bytes: bytes, model_path: str, warmup: int, runs: int):
 
     session = ort.InferenceSession(model_path, providers=["CPUExecutionProvider"])
     input_name = session.get_inputs()[0].name
-    input_array = preprocess_image(image_bytes)
+    
+    # Load processor from original model dir (sibling of the onnx file)
+    original_dir = os.path.join(os.path.dirname(os.path.dirname(model_path)), "original")
+    input_array = preprocess_image(image_bytes, original_dir)
 
     # Warm up
     print(f"  Warming up ({warmup} iterations)...")
@@ -114,17 +125,23 @@ def main():
     parser.add_argument("--runs", type=int, default=100, help="Number of measured iterations")
     args = parser.parse_args()
 
-    project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    sys.path.insert(0, project_root)
-
-    image_path = os.path.join(project_root, args.image)
-    if not os.path.exists(image_path) and not os.path.exists(args.image):
-        print("Please provide a valid image path with --image path/to/image.jpg")
+    # Add current directory to path so it can find 'app'
+    project_root = os.getcwd()
+    if project_root not in sys.path:
+        sys.path.insert(0, project_root)
+    
+    # Try to find the image
+    actual_path = None
+    if os.path.exists(args.image):
+        actual_path = args.image
+    elif os.path.exists(os.path.join(project_root, args.image)):
+        actual_path = os.path.join(project_root, args.image)
+    
+    if actual_path is None:
+        print(f"ERROR: Image not found at {args.image}")
         sys.exit(1)
-        
-    # Prefer absolute path if provided, else relative to project root
-    actual_path = args.image if os.path.exists(args.image) else image_path
 
+    print(f"Using image: {actual_path}")
     with open(actual_path, "rb") as f:
         image_bytes = f.read()
 

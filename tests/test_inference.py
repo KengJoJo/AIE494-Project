@@ -28,34 +28,28 @@ def test_preprocess_output_shape():
     img.save(buf, format="JPEG")
     image_bytes = buf.getvalue()
 
-    result = preprocess_image(image_bytes)
+    # Pass the real model directory to ensure processor loads correctly
+    model_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "models", "original")
+    
+    result = preprocess_image(image_bytes, model_dir=model_dir)
     assert isinstance(result, np.ndarray)
     assert result.shape == (1, 3, 224, 224)
     assert result.dtype == np.float32
 
 
 def test_preprocess_normalization_range():
-    """After ImageNet normalization, values should be roughly in [-3, 3]."""
+    """After processor normalization, values should be roughly in [-3, 3]."""
     img = Image.new("RGB", (224, 224), color=(0, 0, 0))
     buf = BytesIO()
     img.save(buf, format="JPEG")
     image_bytes = buf.getvalue()
 
-    result = preprocess_image(image_bytes)
-    # All-black image normalized: (0/255 - mean) / std
+    model_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "models", "original")
+    result = preprocess_image(image_bytes, model_dir=model_dir)
+    
+    # Values depend on mean/std in preprocessor_config.json
     assert result.min() >= -5.0
     assert result.max() <= 5.0
-
-
-def test_preprocess_custom_size():
-    """Should resize to the specified image_size."""
-    img = Image.new("RGB", (100, 100), color=(50, 50, 50))
-    buf = BytesIO()
-    img.save(buf, format="PNG")
-    image_bytes = buf.getvalue()
-
-    result = preprocess_image(image_bytes, image_size=128)
-    assert result.shape == (1, 3, 128, 128)
 
 
 # ──────────────────────────────────────────────

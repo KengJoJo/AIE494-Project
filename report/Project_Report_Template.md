@@ -235,7 +235,6 @@ https://<your-username>-<your-space-name>.hf.space
 ├── scripts/                # Model preparation scripts
 ├── tests/                  # Pytest test suite
 ├── jmeter/                 # Load testing artifacts
-├── postman/                # API collection
 ├── report/                 # This report
 ├── models/                 # Model artifacts (gitignored)
 ├── results/                # Benchmark & test results

@@ -11,11 +11,7 @@ ENV PYTHONUNBUFFERED=1 \
 
 WORKDIR /app
 
-# Install system dependencies (minimal)
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends libgl1-mesa-glx libglib2.0-0 && \
-    rm -rf /var/lib/apt/lists/*
-
+# No extra system dependencies needed for Pillow/ONNX
 # Install Python dependencies
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt

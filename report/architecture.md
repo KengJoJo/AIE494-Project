@@ -6,7 +6,6 @@
 graph TB
     subgraph Clients
         A[cURL]
-        B[Postman]
         C[JMeter]
         D[Browser / Swagger UI]
     end
@@ -31,7 +30,6 @@ graph TB
     end
 
     A --> E
-    B --> E
     C --> E
     D --> E
 
@@ -44,7 +42,6 @@ graph TB
     H1 -->|predictions| E
     H2 -->|predictions| E
     E -->|JSON response| A
-    E -->|JSON response| B
     E -->|JSON response| C
     E -->|JSON response| D
 

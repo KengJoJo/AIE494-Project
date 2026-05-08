@@ -18,7 +18,7 @@ class Settings(BaseSettings):
         WORKERS         : Number of worker processes for inference (default: 2)
     """
 
-    MODEL_TYPE: str = "quantized"
+    MODEL_TYPE: str = "onnx"
     MODEL_DIR: str = "models"
     MAX_UPLOAD_SIZE_MB: int = 5
     TOP_K: int = 5

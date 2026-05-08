@@ -8,27 +8,30 @@ on every request.
 """
 
 import os
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
+import logging
+import sys
 import numpy as np
+
+logger = logging.getLogger(__name__)
 
 # Global per-process state — initialized lazily on first call
 _ort_session = None
 _id2label: Dict[int, str] = {}
-_model_type: str = "quantized"
+_model_type: str = "onnx"
 _top_k: int = 5
+
+# Default model paths
+DEFAULT_MODEL_DIR = os.path.join(os.path.dirname(__file__), "..", "models")
+DEFAULT_MODEL_PATH = os.path.join(DEFAULT_MODEL_DIR, "onnx", "model.onnx")
+DEFAULT_MODEL_TYPE = "onnx"
 
 
 def _get_model_path(model_type: str, model_dir: str = "models") -> str:
     """Resolve the model file path based on model type."""
-    if model_type == "quantized":
-        return os.path.join(model_dir, "quantized", "model_quantized.onnx")
-    elif model_type == "onnx":
-        return os.path.join(model_dir, "onnx", "model.onnx")
-    else:
-        # For 'original' type, we still use ONNX for worker-based inference
-        # The original PyTorch model is only used in benchmark scripts
-        return os.path.join(model_dir, "onnx", "model.onnx")
+    # FORCE USE STANDARD ONNX FOR ACCURACY
+    return os.path.join(model_dir, "onnx", "model.onnx")
 
 
 def _init_worker(model_type: str = "quantized", model_dir: str = "models", top_k: int = 5):
@@ -51,10 +54,12 @@ def _init_worker(model_type: str = "quantized", model_dir: str = "models", top_k
             f"Run the model preparation scripts first."
         )
 
+    print(f"INFO:  Worker process initializing with model: {model_path}")
+    sys.stdout.flush()
+
     # Create ONNX Runtime session with CPU provider
     sess_options = ort.SessionOptions()
-    sess_options.inter_op_num_threads = 1
-    sess_options.intra_op_num_threads = 2
+    sess_options.graph_optimization_level = ort.GraphOptimizationLevel.ORT_ENABLE_ALL
     _ort_session = ort.InferenceSession(
         model_path,
         sess_options=sess_options,
@@ -63,17 +68,17 @@ def _init_worker(model_type: str = "quantized", model_dir: str = "models", top_k
 
     # Load labels from the original model directory (always available)
     _id2label = load_labels(os.path.join(model_dir, "original"))
-    if not _id2label:
-        # Try loading from the onnx directory as fallback
-        _id2label = load_labels(os.path.join(model_dir, "onnx"))
+    
+    print(f"INFO:  Worker ready. Labels: {len(_id2label)}")
+    sys.stdout.flush()
 
 
 def predict_image_bytes(
     image_bytes: bytes,
-    model_type: str = "quantized",
+    model_type: str = "onnx",
     model_dir: str = "models",
-    top_k: int = 5,
-) -> Dict:
+    top_k: int = 5
+) -> Dict[str, Any]:
     """
     Run inference on raw image bytes. This function is called inside a
     worker process via ProcessPoolExecutor.
@@ -95,8 +100,8 @@ def predict_image_bytes(
 
     from app.inference import preprocess_image, postprocess_predictions
 
-    # Preprocess
-    input_array = preprocess_image(image_bytes)
+    # Preprocess (passing the original model dir to load the correct processor config)
+    input_array = preprocess_image(image_bytes, os.path.join(model_dir, "original"))
 
     # Run ONNX inference
     input_name = _ort_session.get_inputs()[0].name
@@ -106,13 +111,7 @@ def predict_image_bytes(
     # Postprocess
     predictions = postprocess_predictions(logits, _id2label, top_k)
 
-    actual_type = model_type
-    if model_type == "quantized":
-        actual_type = "quantized_onnx"
-    elif model_type == "onnx":
-        actual_type = "onnx"
-
     return {
         "predictions": predictions,
-        "model_type": actual_type,
+        "model_type": model_type,
     }

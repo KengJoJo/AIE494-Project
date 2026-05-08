@@ -40,41 +40,49 @@ def load_labels(model_dir: str) -> Dict[int, str]:
     return {}
 
 
-def preprocess_image(image_bytes: bytes, image_size: int = 224) -> np.ndarray:
-    """
-    Preprocess raw image bytes into a normalized float32 numpy array
-    suitable for MobileNetV2 / similar ImageNet models.
+from transformers import AutoImageProcessor
 
-    Steps:
-        1. Open & convert to RGB
-        2. Resize to (image_size, image_size)
-        3. Convert to float32 and scale to [0, 1]
-        4. Normalize with ImageNet mean and std
-        5. Transpose to NCHW format (1, 3, H, W)
+# Global singleton for the processor (cached per worker process)
+_PROCESSOR = None
+
+
+def get_processor(model_dir: str = None) -> AutoImageProcessor:
+    """
+    Get the AutoImageProcessor instance, loading it once if necessary.
+
+    Args:
+        model_dir: Path to the model directory. If None, resolves to ../models/original.
+
+    Returns:
+        AutoImageProcessor instance.
+    """
+    global _PROCESSOR
+    if _PROCESSOR is None:
+        if model_dir is None:
+            model_dir = os.path.join(os.path.dirname(__file__), "..", "models", "original")
+        _PROCESSOR = AutoImageProcessor.from_pretrained(model_dir)
+    return _PROCESSOR
+
+
+def preprocess_image(image_bytes: bytes, model_dir: str = None) -> np.ndarray:
+    """
+    Preprocess raw image bytes using the official Hugging Face ImageProcessor.
+    Ensures resizing, cropping, and normalization match the model's training requirements.
 
     Args:
         image_bytes: Raw image file bytes.
-        image_size: Target spatial dimension (default 224 for MobileNetV2).
+        model_dir: Optional path to the model directory for loading the processor config.
 
     Returns:
-        np.ndarray of shape (1, 3, image_size, image_size), dtype float32.
+        np.ndarray of shape (1, 3, 224, 224), dtype float32.
     """
+    processor = get_processor(model_dir)
     img = Image.open(BytesIO(image_bytes)).convert("RGB")
-    img = img.resize((image_size, image_size), Image.BILINEAR)
 
-    # To numpy float32 [0, 1]
-    arr = np.array(img, dtype=np.float32) / 255.0
-
-    # ImageNet normalization
-    mean = np.array([0.485, 0.456, 0.406], dtype=np.float32)
-    std = np.array([0.229, 0.224, 0.225], dtype=np.float32)
-    arr = (arr - mean) / std
-
-    # HWC -> CHW -> NCHW
-    arr = arr.transpose(2, 0, 1)
-    arr = np.expand_dims(arr, axis=0)
-
-    return arr
+    # The processor handles resizing (e.g. 256 then 224 center crop) and normalization
+    # Note: Fast processors may only support return_tensors="pt"
+    inputs = processor(images=img, return_tensors="pt")
+    return inputs["pixel_values"].numpy().astype(np.float32)
 
 
 def postprocess_predictions(
