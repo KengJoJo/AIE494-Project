@@ -17,6 +17,7 @@ torchvision
 # ONNX
 onnx
 onnxruntime
+onnxscript
 
 # Testing
 pytest
