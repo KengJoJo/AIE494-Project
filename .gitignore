@@ -1,0 +1,41 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# Virtual environment
+.venv/
+venv/
+ENV/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Model artifacts (large files)
+models/original/
+models/onnx/
+models/quantized/
+
+# Results (generated)
+results/*.jtl
+results/*.csv
+results/*.md
+results/local_dashboard/
+results/cloud_dashboard/
+
+# Environment
+.env
+*.log
+.pytest_cache/

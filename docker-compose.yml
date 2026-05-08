@@ -1,0 +1,32 @@
+# ──────────────────────────────────────────────
+# Docker Compose for local development & testing
+# ──────────────────────────────────────────────
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: image-classification-api
+    ports:
+      - "8000:7860"
+    environment:
+      - MODEL_TYPE=quantized
+      - MAX_UPLOAD_SIZE_MB=5
+      - TOP_K=5
+      - WORKERS=2
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 2G
+        reservations:
+          cpus: "1.0"
+          memory: 1G
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:7860/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s

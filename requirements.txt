@@ -1,0 +1,27 @@
+# Core API
+fastapi
+uvicorn[standard]
+python-multipart
+pydantic
+pydantic-settings
+
+# Image processing
+Pillow
+numpy
+
+# ML / Model
+transformers
+torch
+torchvision
+
+# ONNX
+onnx
+onnxruntime
+
+# Testing
+pytest
+httpx
+
+# Benchmarking
+pandas
+tqdm
