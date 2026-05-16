@@ -10,141 +10,102 @@ pinned: false
 
 # AIE494 Image Classification API
 
-High-throughput image classification service built with FastAPI, MobileNetV2,
-ONNX Runtime, Docker, GitHub Actions, and JMeter.
+โปรเจกต์นี้เป็น API สำหรับจำแนกรูปภาพด้วยโมเดล MobileNetV2 โดยทำเป็น REST API ด้วย FastAPI และ deploy ขึ้น Hugging Face Spaces แบบ Docker
 
-## Team Members
+## รายชื่อสมาชิก
 
 1. นายธนนท์ จิตรพรหม 1650904194
 2. นายเจตนิพัทธ อินทรีย์ 1650901471
 3. นายนิธิกุล แก้วไพฑูรย์ 1650903808
 
-## Project Links
+## ลิงก์โปรเจกต์
 
-- GitHub repository: https://github.com/KengJoJo/AIE494-Project
-- Hugging Face Space page: https://huggingface.co/spaces/KengJoJo/AIE494-Project
-- Cloud API URL: https://kengjojo-aie494-project.hf.space
+- GitHub: https://github.com/KengJoJo/AIE494-Project
+- Hugging Face Space: https://huggingface.co/spaces/KengJoJo/AIE494-Project
+- Cloud API: https://kengjojo-aie494-project.hf.space
 
-The production API uses the standard ONNX model (`MODEL_TYPE=onnx`) because the
-local benchmark showed the best latency and the most reliable predictions. A
-quantized ONNX model is also included as an optimization experiment.
+## ภาพรวมระบบ
 
-## Features
+ระบบรับไฟล์รูปภาพจากผู้ใช้ผ่าน endpoint `/predict` แล้วตรวจสอบไฟล์ก่อนนำไปประมวลผล เช่น ตรวจชนิดไฟล์ ขนาดไฟล์ และตรวจว่าเป็นรูปภาพที่เปิดได้จริง จากนั้นส่งรูปเข้าโมเดล MobileNetV2 ที่แปลงเป็น ONNX เพื่อให้ inference บน CPU ได้เร็วขึ้น
 
-- REST API for image classification
-- MobileNetV2 ImageNet-1K model from Hugging Face
-- ONNX Runtime CPU inference
-- Image upload validation for file type, file size, and image integrity
-- ProcessPoolExecutor for CPU-bound inference work
-- Docker and Docker Compose support
-- GitHub Actions CI/CD pipeline
-- JMeter load-test plan
-- Postman collection and cURL examples
+โมเดลที่ใช้จริงบน API คือ ONNX ปกติ (`MODEL_TYPE=onnx`) เพราะจากผล benchmark เร็วกว่า PyTorch และให้ผลทำนายที่ใช้งานได้ดีกว่า quantized model ในการทดลองนี้
 
-## Project Structure
+## โครงสร้างไฟล์
 
 ```text
-app/                         FastAPI application code
-models/                      Model artifacts
-scripts/                     Model preparation and benchmark scripts
-tests/                       Pytest test suite
-jmeter/                      JMeter load-test plan
-postman/                     Postman API collection
-report/                      Project report source files
-results/                     Benchmark and generated testing outputs
-.github/workflows/ci-cd.yml  CI/CD workflow
-Dockerfile                   Production container image
-docker-compose.yml           Local Docker Compose setup
+app/                         โค้ด FastAPI
+models/                      ไฟล์โมเดล
+scripts/                     สคริปต์เตรียมโมเดลและ benchmark
+tests/                       unit tests
+jmeter/                      JMeter test plan
+postman/                     Postman collection
+report/                      รายงานโปรเจกต์
+results/                     ผล benchmark และผลทดสอบ
+.github/workflows/ci-cd.yml  GitHub Actions
+Dockerfile                   Docker image สำหรับ deploy
+docker-compose.yml           ใช้รัน local ด้วย Docker
 ```
 
-## Requirements
+## วิธีติดตั้งและรัน local
 
-- Python 3.10 or 3.11
-- Docker Desktop, optional but recommended
-- Apache JMeter 5.6 or newer for load testing
-
-Install dependencies:
+ติดตั้ง dependency:
 
 ```bash
 pip install -r requirements.txt
 ```
 
-If `python` points to the Microsoft Store alias on Windows, use the full Python
-path or configure your PATH before running the scripts.
-
-## Prepare Models
-
-The repository already contains model artifacts. If you need to regenerate them,
-run:
-
-```bash
-python scripts/download_model.py
-python scripts/export_onnx.py
-python scripts/quantize_onnx.py
-```
-
-## Run Locally
+รัน API:
 
 ```bash
 uvicorn app.main:app --host 0.0.0.0 --port 8000
 ```
 
-Open Swagger UI:
+เปิด Swagger UI:
 
 ```text
 http://localhost:8000/docs
 ```
 
-## Run with Docker
+หรือรันด้วย Docker:
 
 ```bash
 docker compose up --build
 ```
 
-The service will be available at:
+## Endpoint หลัก
 
-```text
-http://localhost:8000
-```
-
-## API Endpoints
-
-| Method | Path | Description |
+| Method | Endpoint | รายละเอียด |
 | --- | --- | --- |
-| GET | `/` | Service status |
-| GET | `/health` | Health check and active model status |
-| POST | `/predict` | Upload an image and return top-K predictions |
+| GET | `/` | ตรวจว่า API ทำงานอยู่ |
+| GET | `/health` | ตรวจสถานะโมเดล |
+| POST | `/predict` | ส่งรูปภาพเพื่อจำแนกประเภท |
 
-## cURL Examples
+## ตัวอย่าง cURL
 
-Local API:
-
-```bash
-curl -X POST "http://localhost:8000/predict" \
-  -H "accept: application/json" \
-  -F "file=@test_cat.jpg;type=image/jpeg"
-```
-
-Hugging Face Spaces API:
+Local:
 
 ```bash
-curl -X POST "https://kengjojo-aie494-project.hf.space/predict" \
-  -H "accept: application/json" \
-  -F "file=@test_cat.jpg;type=image/jpeg"
+curl.exe -X POST "http://localhost:8000/predict" -H "accept: application/json" -F "file=@test_cat.jpg;type=image/jpeg"
 ```
 
-Example response:
+Cloud:
+
+```bash
+curl.exe -X POST "https://kengjojo-aie494-project.hf.space/predict" -H "accept: application/json" -F "file=@test_cat.jpg;type=image/jpeg"
+```
+
+ตัวอย่างผลลัพธ์:
 
 ```json
 {
   "filename": "test_cat.jpg",
   "content_type": "image/jpeg",
   "model_type": "onnx",
-  "latency_ms": 12.34,
+  "latency_ms": 7712.93,
   "predictions": [
     {
-      "label": "tabby, tabby cat",
-      "score": 0.7842
+      "label": "lynx, catamount",
+      "score": 0.6373
     }
   ]
 }
@@ -152,38 +113,42 @@ Example response:
 
 ## Postman
 
-Import this file into Postman:
+สามารถ import collection นี้เข้า Postman ได้:
 
 ```text
 postman/image-classification-api.postman_collection.json
 ```
 
-Set collection variables:
+ค่า `baseUrl` ที่ใช้ได้:
 
-| Variable | Example |
-| --- | --- |
-| `baseUrl` | `http://localhost:8000` or `https://kengjojo-aie494-project.hf.space` |
-| `imagePath` | `C:/Work/AIE494/ProjectAIE494/test_cat.jpg` |
+```text
+http://localhost:8000
+https://kengjojo-aie494-project.hf.space
+```
 
-## Test
+## การทดสอบ
+
+รัน unit test:
 
 ```bash
 pytest -q
 ```
 
-Current local result:
+ผลล่าสุด:
 
 ```text
 17 passed
 ```
 
-## Benchmark
+## Benchmark โมเดล
+
+คำสั่งที่ใช้:
 
 ```bash
 python scripts/benchmark.py --image test_cat.jpg --warmup 20 --runs 50
 ```
 
-Current benchmark summary:
+ผลที่ได้:
 
 | Model Type | Size (MB) | Avg (ms) | P50 (ms) | P95 (ms) |
 | --- | ---: | ---: | ---: | ---: |
@@ -191,7 +156,7 @@ Current benchmark summary:
 | ONNX | 0.33 | 2.23 | 2.19 | 2.60 |
 | Quantized ONNX | 3.60 | 20.10 | 19.36 | 22.25 |
 
-Full benchmark output:
+ไฟล์ผลลัพธ์อยู่ที่:
 
 ```text
 results/benchmark_results.md
@@ -200,65 +165,70 @@ results/benchmark_results.csv
 
 ## JMeter Load Test
 
-Start the API first, then run:
+ไฟล์ test plan:
 
-```bash
-jmeter -n -t jmeter/image_classification_load_test.jmx \
-  -JPROTOCOL=http -JHOST=localhost -JPORT=8000 \
-  -JIMAGE_PATH="C:/Work/AIE494/ProjectAIE494/test_cat.jpg" \
-  -l results/local_results.jtl \
-  -e -o results/local_dashboard
+```text
+jmeter/image_classification_load_test.jmx
 ```
 
-Cloud test:
+รัน cloud load test:
 
 ```bash
-jmeter -n -t jmeter/image_classification_load_test.jmx \
-  -JPROTOCOL=https -JHOST=kengjojo-aie494-project.hf.space -JPORT=443 \
-  -JIMAGE_PATH="C:/Work/AIE494/ProjectAIE494/test_cat.jpg" \
-  -l results/cloud_results.jtl \
-  -e -o results/cloud_dashboard
+jmeter -n -t jmeter/image_classification_load_test.jmx -JPROTOCOL=https -JHOST=kengjojo-aie494-project.hf.space -JPORT=443 -JIMAGE_PATH="C:/Work/AIE494/ProjectAIE494/test_cat.jpg" -l results/cloud_results.jtl -e -o results/cloud_dashboard
 ```
 
-JMeter plan details:
+ถ้าไม่ได้ตั้ง `jmeter` ไว้ใน PATH ให้ใช้ path ของ `jmeter.bat` แทน เช่น:
 
-- 50 concurrent users
-- 10 second ramp-up
-- 10 loops per user
-- 500 total requests
-- POST `/predict` with multipart image upload
-- HTTP 200 and JSON predictions assertions
+```bash
+C:/Work/AIE494/apache-jmeter-5.6.3/bin/jmeter.bat -n -t jmeter/image_classification_load_test.jmx -JPROTOCOL=https -JHOST=kengjojo-aie494-project.hf.space -JPORT=443 -JIMAGE_PATH="C:/Work/AIE494/ProjectAIE494/test_cat.jpg" -l results/cloud_results.jtl -e -o results/cloud_dashboard
+```
+
+ผล cloud load test ล่าสุด:
+
+| Metric | Value |
+| --- | ---: |
+| Total Requests | 500 |
+| Success | 499 |
+| Error | 1 |
+| Error Rate | 0.20% |
+| Throughput | 5.32 req/s |
+| Average Response Time | 7,946.01 ms |
+| P95 Latency | 9,768.00 ms |
+
+เปิด dashboard ได้ที่:
+
+```text
+results/cloud_dashboard/index.html
+```
 
 ## CI/CD
 
-Workflow file:
+ใช้ GitHub Actions ที่ไฟล์:
 
 ```text
 .github/workflows/ci-cd.yml
 ```
 
-Pipeline stages:
+ขั้นตอนหลักของ pipeline:
 
-1. Checkout repository
-2. Set up Python 3.11
-3. Install dependencies
-4. Run pytest
-5. Prepare model artifacts
-6. Deploy to Hugging Face Spaces on pushes to `main`
+1. ติดตั้ง Python และ dependencies
+2. รัน `pytest`
+3. เตรียมไฟล์โมเดล
+4. deploy ไป Hugging Face Spaces เมื่อ push เข้า branch `main`
 
-Required GitHub secrets:
+Secrets ที่ใช้:
 
-| Secret | Description |
+| Secret | รายละเอียด |
 | --- | --- |
-| `HF_TOKEN` | Hugging Face write token |
-| `HF_SPACE_ID` | Target Space ID, for example `username/image-classification-api` |
+| `HF_TOKEN` | token สำหรับ Hugging Face |
+| `HF_SPACE_ID` | repo id ของ Space |
 
-## Submission Checklist
+## ไฟล์สำหรับส่งงาน
 
-- `report/Project_Report_Template.md` exported as PDF
-- GitHub repository URL
-- `.github/workflows/ci-cd.yml`
-- `jmeter/image_classification_load_test.jmx`
-- Generated JMeter HTML dashboard
-- `postman/image-classification-api.postman_collection.json`
-- Cloud cURL command for `/predict`
+- รายงาน PDF: `report/AIE494_Project_Report_TH.pdf`
+- JMeter test plan: `jmeter/image_classification_load_test.jmx`
+- JMeter dashboard: `results/cloud_dashboard/`
+- Postman collection: `postman/image-classification-api.postman_collection.json`
+- Benchmark results: `results/benchmark_results.md`, `results/benchmark_results.csv`
+- GitHub repository: https://github.com/KengJoJo/AIE494-Project
+- Cloud API: https://kengjojo-aie494-project.hf.space

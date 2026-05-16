@@ -40,6 +40,7 @@ results/*dashboard*/
 report/*.html
 report/*.pdf
 report/*Summary_For_AI*.md
+*.zip
 
 # Local scratch/debug files
 scratch/
