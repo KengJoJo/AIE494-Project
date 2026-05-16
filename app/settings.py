@@ -11,7 +11,7 @@ class Settings(BaseSettings):
     Configuration loaded from environment variables with sensible defaults.
 
     Environment variables:
-        MODEL_TYPE      : "original" | "onnx" | "quantized" (default: quantized)
+        MODEL_TYPE      : "onnx" | "quantized" (default: onnx)
         MODEL_DIR       : Root directory for model artifacts (default: models)
         MAX_UPLOAD_SIZE_MB : Maximum upload file size in megabytes (default: 5)
         TOP_K           : Number of top predictions to return (default: 5)

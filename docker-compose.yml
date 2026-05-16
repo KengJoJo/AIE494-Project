@@ -1,6 +1,4 @@
-# ──────────────────────────────────────────────
-# Docker Compose for local development & testing
-# ──────────────────────────────────────────────
+# Docker Compose for local development and testing
 
 services:
   api:
@@ -11,7 +9,7 @@ services:
     ports:
       - "8000:7860"
     environment:
-      - MODEL_TYPE=quantized
+      - MODEL_TYPE=onnx
       - MAX_UPLOAD_SIZE_MB=5
       - TOP_K=5
       - WORKERS=2

@@ -1,0 +1,101 @@
+{
+  "info": {
+    "_postman_id": "8a0f20cf-52da-4cf0-bb67-a9f8715efb01",
+    "name": "AIE494 Image Classification API",
+    "description": "Postman collection for testing the FastAPI image classification service locally or on Hugging Face Spaces.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "https://kengjojo-aie494-project.hf.space",
+      "type": "string"
+    },
+    {
+      "key": "imagePath",
+      "value": "C:/Work/AIE494/ProjectAIE494/test_cat.jpg",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Service Status",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            ""
+          ]
+        },
+        "description": "Checks whether the API server is running."
+      },
+      "response": []
+    },
+    {
+      "name": "Health Check",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/health",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "health"
+          ]
+        },
+        "description": "Checks model availability and active model type."
+      },
+      "response": []
+    },
+    {
+      "name": "Predict Image",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "file",
+              "type": "file",
+              "src": "{{imagePath}}"
+            }
+          ]
+        },
+        "url": {
+          "raw": "{{baseUrl}}/predict",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "predict"
+          ]
+        },
+        "description": "Uploads an image as multipart/form-data and returns top-K predictions."
+      },
+      "response": []
+    }
+  ]
+}

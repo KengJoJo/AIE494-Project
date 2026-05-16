@@ -30,11 +30,11 @@ DEFAULT_MODEL_TYPE = "onnx"
 
 def _get_model_path(model_type: str, model_dir: str = "models") -> str:
     """Resolve the model file path based on model type."""
-    # FORCE USE STANDARD ONNX FOR ACCURACY
+    # Production uses standard ONNX because it had the best benchmark result.
     return os.path.join(model_dir, "onnx", "model.onnx")
 
 
-def _init_worker(model_type: str = "quantized", model_dir: str = "models", top_k: int = 5):
+def _init_worker(model_type: str = "onnx", model_dir: str = "models", top_k: int = 5):
     """
     Lazily initialize the ONNX Runtime session and label map.
     Called once per worker process on the first inference request.

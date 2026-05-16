@@ -61,7 +61,7 @@ app = FastAPI(
     title="High-Throughput Image Classification API",
     description=(
         "A production-ready image classification service powered by "
-        "MobileNetV2 with ONNX Runtime and dynamic quantization."
+        "MobileNetV2 with ONNX Runtime for fast CPU inference."
     ),
     version="1.0.0",
     docs_url="/docs",

@@ -1,257 +1,349 @@
-# Project Report: High-Throughput Image Classification Service
+# Project Report: High-Throughput Image Classification API
 
-> **Course:** AIE494  
-> **Student Name:** [Your Name]  
-> **Student ID:** [Your Student ID]  
-> **Date:** [Submission Date]
-
----
+> Course: AIE494
+> Team Members:
+> 1. นายธนนท์ จิตรพรหม 1650904194
+> 2. นายเจตนิพัทธ อินทรีย์ 1650901471
+> 3. นายนิธิกุล แก้วไพฑูรย์ 1650903808
+> Repository: https://github.com/KengJoJo/AIE494-Project
+> Hugging Face Space: https://huggingface.co/spaces/KengJoJo/AIE494-Project
+> Cloud API URL: https://kengjojo-aie494-project.hf.space
+> Date: May 16, 2026
 
 ## 1. Project Overview
 
-This project implements a **High-Throughput Image Classification API** using FastAPI, ONNX Runtime, and dynamic quantization. The system accepts uploaded images, classifies them using a MobileNetV2 model, and returns top-K predictions with confidence scores.
+This project implements a production-style image classification API. The service
+accepts an uploaded image through a REST endpoint, validates the input, runs
+MobileNetV2 inference with ONNX Runtime, and returns the top predicted ImageNet
+classes as JSON.
 
-**Key Features:**
-- Real-time image classification via REST API
-- ONNX conversion and dynamic quantization for optimized CPU inference
-- Concurrent request handling with ProcessPoolExecutor
-- Docker packaging for deployment
-- CI/CD pipeline with GitHub Actions
-- Load testing with JMeter
+The project focuses on practical machine-learning deployment concerns:
 
----
+- Model conversion and optimization for CPU inference
+- FastAPI service design
+- Input validation and structured error handling
+- Concurrent request processing
+- Docker-based deployment
+- CI/CD with GitHub Actions
+- Load testing with Apache JMeter
 
-## 2. Model Selection
+## 2. Selected Model and Purpose
 
-| Attribute       | Value                              |
-|-----------------|-------------------------------------|
-| Model           | `google/mobilenet_v2_1.0_224`      |
-| Source           | Hugging Face Transformers          |
-| Task             | Image Classification (ImageNet-1K) |
-| Input Size       | 224 × 224 × 3                      |
-| Number of Classes| 1,000                              |
-| Parameters       | ~3.4M                              |
+| Attribute | Value |
+| --- | --- |
+| Model | `google/mobilenet_v2_1.0_224` |
+| Source | Hugging Face Transformers |
+| Task | Image classification |
+| Dataset/classes | ImageNet-1K, 1,000 classes |
+| Input shape | 224 x 224 RGB image |
+| Deployment format | ONNX |
+| Inference engine | ONNX Runtime CPUExecutionProvider |
 
-**Why MobileNetV2?**
-- Lightweight architecture designed for mobile and edge deployment
-- Fast CPU inference suitable for real-time API serving
-- Good accuracy-to-speed tradeoff for production use
-- Widely supported by ONNX Runtime
+MobileNetV2 was selected because it is lightweight, fast on CPU, and suitable
+for real-time API inference. The model is large enough to demonstrate a real
+computer-vision workload but small enough to deploy on a low-cost CPU cloud
+environment such as Hugging Face Spaces.
 
----
+The purpose of the model is to classify general images into ImageNet categories.
+In this project, it is used to demonstrate how a machine-learning model can be
+optimized, packaged, tested, deployed, and exposed through an API.
 
-## 3. Purpose of the Model
+## 3. System Architecture
 
-The model classifies input images into one of 1,000 ImageNet categories. This demonstrates:
-- How to serve ML models via REST APIs
-- Model optimization techniques (ONNX, quantization)
-- Production-grade error handling and validation
-- Scalable concurrent inference architecture
+```mermaid
+graph TB
+    Client["Client: cURL / Postman / JMeter"] --> API["FastAPI app"]
+    API --> Validation["Validation layer"]
+    Validation --> Executor["ProcessPoolExecutor"]
+    Executor --> Worker1["Worker process 1"]
+    Executor --> Worker2["Worker process 2"]
+    Worker1 --> Model["MobileNetV2 ONNX model"]
+    Worker2 --> Model
+    Model --> Response["JSON predictions"]
+    Response --> Client
 
----
+    GitHub["GitHub repository"] --> Actions["GitHub Actions CI/CD"]
+    Actions --> Tests["pytest"]
+    Actions --> Deploy["Hugging Face Spaces"]
+```
 
-## 4. System Architecture
+### Request Flow
 
-See [architecture.md](architecture.md) for the detailed system diagram.
+```mermaid
+sequenceDiagram
+    participant Client
+    participant API as FastAPI
+    participant Validator as Validation
+    participant Pool as ProcessPoolExecutor
+    participant Worker as ONNX Worker
+    participant Model as ONNX Model
 
-**Components:**
-1. **FastAPI Server** — Handles HTTP requests, validation, and response formatting
-2. **Validation Layer** — Checks file type, size, and image integrity
-3. **ProcessPoolExecutor** — Dispatches CPU-bound inference to worker processes
-4. **ONNX Runtime Worker** — Runs the quantized model in separate processes
-5. **Docker Container** — Packages the entire application
-6. **GitHub Actions** — Automates testing and deployment
+    Client->>API: POST /predict with image file
+    API->>Validator: Validate MIME type, size, and image integrity
+    alt Invalid input
+        Validator-->>API: HTTPException
+        API-->>Client: Error JSON
+    else Valid input
+        Validator-->>API: Image bytes
+        API->>Pool: run_in_executor
+        Pool->>Worker: predict_image_bytes
+        Worker->>Model: ONNX Runtime session.run
+        Model-->>Worker: Logits
+        Worker-->>API: Top-K predictions
+        API-->>Client: JSON response
+    end
+```
 
----
+### Model Optimization Pipeline
 
-## 5. API Design
+```mermaid
+graph LR
+    HF["Hugging Face model"] --> PT["Original PyTorch model"]
+    PT --> ONNX["Exported ONNX model"]
+    ONNX --> QONNX["Quantized ONNX experiment"]
+    ONNX --> API["Production API"]
+```
 
-### Endpoints
+## 4. API Design
 
-| Method | Path      | Description                    |
-|--------|-----------|--------------------------------|
-| GET    | `/`       | Service status                 |
-| GET    | `/health` | Health check with model status |
-| POST   | `/predict`| Image classification           |
+| Method | Endpoint | Description |
+| --- | --- | --- |
+| GET | `/` | Service status |
+| GET | `/health` | Health check and active model status |
+| POST | `/predict` | Upload image and return top-K predictions |
 
-### Example Request
+Example local request:
 
 ```bash
 curl -X POST "http://localhost:8000/predict" \
   -H "accept: application/json" \
-  -F "file=@path/to/image.jpg;type=image/jpeg"
+  -F "file=@test_cat.jpg;type=image/jpeg"
 ```
 
-### Example Response
+Example cloud request:
+
+```bash
+curl -X POST "https://kengjojo-aie494-project.hf.space/predict" \
+  -H "accept: application/json" \
+  -F "file=@test_cat.jpg;type=image/jpeg"
+```
+
+Example response:
 
 ```json
 {
-  "filename": "image.jpg",
+  "filename": "test_cat.jpg",
   "content_type": "image/jpeg",
-  "model_type": "quantized_onnx",
-  "latency_ms": 35.42,
+  "model_type": "onnx",
+  "latency_ms": 12.34,
   "predictions": [
-    {"label": "spider web", "score": 0.9234},
-    {"label": "web site", "score": 0.0312},
-    {"label": "barn spider", "score": 0.0156}
+    {
+      "label": "tabby, tabby cat",
+      "score": 0.7842
+    }
   ]
 }
 ```
 
----
+## 5. Model Optimization Results
+
+The benchmark was executed with `test_cat.jpg`, 20 warm-up iterations, and 50
+measured iterations.
+
+| Model Type | Size (MB) | Avg (ms) | P50 (ms) | P95 (ms) | Min (ms) | Max (ms) |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| Original PyTorch | 13.54 | 17.74 | 17.32 | 22.22 | 13.32 | 25.99 |
+| ONNX | 0.33 | 2.23 | 2.19 | 2.60 | 1.95 | 2.69 |
+| Quantized ONNX | 3.60 | 20.10 | 19.36 | 22.25 | 17.87 | 39.10 |
+
+### Optimization Analysis
+
+The ONNX model is the best production choice in this experiment. It reduced
+average latency from 17.74 ms to 2.23 ms, which is approximately 7.95x faster
+than the original PyTorch model. It also reduced the measured model file size
+from 13.54 MB to 0.33 MB.
+
+The quantized ONNX model was tested as an optimization experiment, but it was
+not selected for production because its measured latency was worse than the
+standard ONNX model on this machine. In addition, earlier manual checks showed
+weaker prediction quality for the quantized model. Therefore, the deployed API
+uses `MODEL_TYPE=onnx`.
 
 ## 6. Error Handling and Data Validation
 
-| Scenario              | HTTP Status | Response                          |
-|-----------------------|-------------|-----------------------------------|
-| Valid image           | 200         | JSON predictions                  |
-| Invalid file type     | 400         | "Invalid file type"               |
-| Corrupted image       | 400         | "Not a valid image or corrupted"  |
-| File too large (>5MB) | 413         | "Exceeds maximum allowed size"    |
-| Missing file field    | 422         | "Field required"                  |
-| Server error          | 500         | "Inference error: ..."            |
+The API validates user input before running inference. This prevents corrupted
+files, unsupported content types, and oversized uploads from reaching the model
+worker.
 
-**Validation checks:**
-- Content type must be `image/jpeg`, `image/png`, or `image/webp`
-- File size must be ≤ 5 MB (configurable)
-- Image must pass Pillow `verify()` integrity check
+| Scenario | HTTP Status | Handling Strategy |
+| --- | ---: | --- |
+| Valid JPEG, PNG, or WEBP image | 200 | Return predictions as JSON |
+| Unsupported MIME type | 400 | Reject request with a clear error message |
+| Corrupted or non-image file | 400 | Pillow verification fails and API returns error JSON |
+| File larger than 5 MB | 413 | Reject request before inference |
+| Missing `file` field | 422 | FastAPI validation error |
+| Missing model artifact | 500 | Return server error indicating model file is missing |
+| Unexpected inference failure | 500 | Log exception and return structured error JSON |
 
----
+Validation checks implemented:
 
-## 7. Model Optimization Results
+- Accept only `image/jpeg`, `image/png`, and `image/webp`
+- Enforce `MAX_UPLOAD_SIZE_MB=5`
+- Verify image integrity with Pillow `Image.verify()`
+- Return typed Pydantic response schemas for successful responses
+- Execute CPU-bound inference outside the FastAPI event loop
 
-> **Instructions:** Run `python scripts/benchmark.py --image path/to/image.jpg` and paste the results below.
+## 7. JMeter Load Testing
 
-| Model Type       | Size (MB) | Avg (ms) | P50 (ms) | P95 (ms) | Notes                   |
-|------------------|-----------|----------|----------|----------|-------------------------|
-| Original (PyTorch) | ___.__ | ___.__ | ___.__ | ___.__ | Baseline                |
-| ONNX             | ___.__ | ___.__ | ___.__ | ___.__ | Converted from PyTorch  |
-| Quantized ONNX   | ___.__ | ___.__ | ___.__ | ___.__ | INT8 dynamic quantization |
+The JMeter test plan is located at:
 
-**Analysis:**
-- [Describe size reduction from Original → ONNX → Quantized]
-- [Describe latency improvements]
-- [Note any accuracy tradeoffs observed]
+```text
+jmeter/image_classification_load_test.jmx
+```
 
----
+Test plan configuration:
 
-## 8. JMeter Load Testing
+| Setting | Value |
+| --- | --- |
+| Concurrent users | 50 |
+| Ramp-up | 10 seconds |
+| Loop count | 10 |
+| Total requests | 500 |
+| Endpoint | `POST /predict` |
+| Request type | `multipart/form-data` image upload |
+| Assertions | HTTP 200 and JSON predictions exist |
 
-### 8.1 Local Docker Results
+### Local JMeter Command
 
-> Run: `jmeter -n -t jmeter/image_classification_load_test.jmx -l results/local_results.jtl -e -o results/local_dashboard`
+```bash
+jmeter -n -t jmeter/image_classification_load_test.jmx \
+  -JPROTOCOL=http -JHOST=localhost -JPORT=8000 \
+  -JIMAGE_PATH="C:/Work/AIE494/ProjectAIE494/test_cat.jpg" \
+  -l results/local_results.jtl \
+  -e -o results/local_dashboard
+```
 
-| Metric          | Value     |
-|-----------------|-----------|
-| Total Requests  | 500       |
-| Throughput (TPS)| ___.__ /s |
-| Avg Response Time | ___ ms  |
-| P95 Latency     | ___ ms    |
-| Error Rate      | ____%     |
+### Cloud JMeter Command
 
-### 8.2 Hugging Face Cloud Results
+```bash
+jmeter -n -t jmeter/image_classification_load_test.jmx \
+  -JPROTOCOL=https -JHOST=kengjojo-aie494-project.hf.space -JPORT=443 \
+  -JIMAGE_PATH="C:/Work/AIE494/ProjectAIE494/test_cat.jpg" \
+  -l results/cloud_results.jtl \
+  -e -o results/cloud_dashboard
+```
 
-> Run with `-JHOST=<your-space>.hf.space -JPORT=443 -JPROTOCOL=https`
+### JMeter Dashboard Results
 
-| Metric          | Value     |
-|-----------------|-----------|
-| Total Requests  | 500       |
-| Throughput (TPS)| ___.__ /s |
-| Avg Response Time | ___ ms  |
-| P95 Latency     | ___ ms    |
-| Error Rate      | ____%     |
+Fill this table after running JMeter and opening the generated HTML dashboard.
 
-### 8.3 Bottleneck Analysis
+| Environment | Total Requests | Throughput | Avg Response Time | P95 Latency | Error Rate |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Local Docker/API | 500 | [Fill] | [Fill] | [Fill] | [Fill] |
+| Hugging Face Spaces | 500 | [Fill] | [Fill] | [Fill] | [Fill] |
 
-- [Describe where bottlenecks occur: CPU inference, network, memory, etc.]
-- [Compare local vs cloud performance]
-- [Discuss impact of Docker CPU/memory limits]
-- [Suggestions for scaling: more workers, GPU, caching, etc.]
+### Performance Analysis
 
----
+The expected local bottleneck is CPU inference capacity. The API uses
+`ProcessPoolExecutor` with two worker processes, so requests beyond the worker
+capacity will queue. This design keeps the FastAPI event loop responsive while
+the CPU-bound model work runs in separate processes.
+
+Cloud performance is expected to be slower than local execution because Hugging
+Face Spaces free CPU hardware has limited resources and network latency is
+added. If throughput is insufficient, possible improvements include increasing
+worker count, moving to a larger CPU instance, using GPU inference, adding
+request limits, or deploying multiple replicas behind a load balancer.
+
+## 8. Testing Artifacts
+
+| Artifact | Path |
+| --- | --- |
+| Pytest tests | `tests/` |
+| Benchmark output | `results/benchmark_results.md` and `results/benchmark_results.csv` |
+| JMeter test plan | `jmeter/image_classification_load_test.jmx` |
+| JMeter local dashboard | `results/local_dashboard/` after generation |
+| JMeter cloud dashboard | `results/cloud_dashboard/` after generation |
+| Postman collection | `postman/image-classification-api.postman_collection.json` |
+
+Pytest result from the local environment:
+
+```text
+17 passed
+```
 
 ## 9. CI/CD Pipeline
 
-**Pipeline stages:**
-1. **Checkout** — Pull latest code
-2. **Setup Python** — Install Python 3.11
-3. **Install Dependencies** — `pip install -r requirements.txt`
-4. **Run Tests** — `pytest -q`
-5. **Deploy** — Upload to Hugging Face Spaces (main branch only)
+The CI/CD pipeline is defined in:
 
-**Secrets required:**
-- `HF_TOKEN` — Hugging Face API token
-- `HF_SPACE_ID` — Target Space ID (e.g., `username/image-classification`)
+```text
+.github/workflows/ci-cd.yml
+```
 
----
+Pipeline stages:
+
+1. Checkout source code from GitHub
+2. Set up Python 3.11
+3. Cache pip dependencies
+4. Install dependencies from `requirements.txt`
+5. Run `pytest -q --tb=short`
+6. On pushes to `main`, prepare model artifacts
+7. Deploy the Docker Space to Hugging Face Spaces
+
+Required GitHub secrets:
+
+| Secret | Description |
+| --- | --- |
+| `HF_TOKEN` | Hugging Face token with write access |
+| `HF_SPACE_ID` | Target Space ID, for example `username/image-classification-api` |
 
 ## 10. Deployment
 
-### Hugging Face Spaces
+The project can be deployed to Hugging Face Spaces as a Docker Space. The
+Dockerfile exposes port `7860`, which matches the Hugging Face Spaces default
+for web apps. Docker Compose maps local port `8000` to container port `7860`
+for local testing.
 
-1. Create a new Space on [huggingface.co](https://huggingface.co/new-space)
-   - SDK: Docker
-   - Hardware: CPU Basic (free)
-2. Set GitHub Secrets:
-   - `HF_TOKEN`: your HF write token
-   - `HF_SPACE_ID`: `your-username/your-space-name`
-3. Push to `main` branch → CI/CD auto-deploys
+Local Docker command:
 
-### Live URL
-
-```
-https://<your-username>-<your-space-name>.hf.space
+```bash
+docker compose up --build
 ```
 
----
+Cloud URL format:
+
+```text
+https://kengjojo-aie494-project.hf.space
+```
 
 ## 11. Problems and Solutions
 
-| # | Problem | Solution |
-|---|---------|----------|
-| 1 | [Describe problem] | [Describe solution] |
-| 2 | [Describe problem] | [Describe solution] |
-| 3 | [Describe problem] | [Describe solution] |
-
----
+| Problem | Solution |
+| --- | --- |
+| CPU-bound inference can block request handling | Move inference into `ProcessPoolExecutor` workers |
+| Model loading is expensive | Lazy-load ONNX Runtime session once per worker process |
+| Invalid uploads can cause runtime errors | Validate MIME type, file size, and image integrity before inference |
+| Quantized model was not faster in the measured environment | Use standard ONNX model for production and document quantized results as an experiment |
+| Large model files are difficult to store in Git | Track model artifacts with Git LFS when pushing to GitHub/Hugging Face |
 
 ## 12. Conclusion
 
-[Summarize what was achieved, key learnings, and potential future improvements such as:]
-- GPU inference support
-- Model caching and warm-up strategies
-- Additional model architectures
-- Real-time monitoring and alerting
-- Auto-scaling based on load
+The project successfully implements an image classification API with a clear
+production deployment path. The ONNX model provides the best measured latency,
+the API includes validation and structured errors, the codebase includes unit
+tests, and the repository contains CI/CD, Docker, JMeter, Postman, and reporting
+artifacts.
 
----
+Future improvements include GPU inference, autoscaling, request rate limiting,
+model monitoring, and additional benchmark runs on different hardware.
 
-## Appendix
+## Appendix A: Final Submission Checklist
 
-### A. Project Repository Structure
-
-```
-├── app/                    # FastAPI application
-├── scripts/                # Model preparation scripts
-├── tests/                  # Pytest test suite
-├── jmeter/                 # Load testing artifacts
-├── report/                 # This report
-├── models/                 # Model artifacts (gitignored)
-├── results/                # Benchmark & test results
-├── Dockerfile
-├── docker-compose.yml
-└── requirements.txt
-```
-
-### B. Technology Stack
-
-| Component       | Technology                    |
-|-----------------|-------------------------------|
-| Web Framework   | FastAPI                       |
-| ML Framework    | PyTorch + Transformers        |
-| Inference Engine| ONNX Runtime                  |
-| Optimization    | Dynamic Quantization (INT8)   |
-| Concurrency     | ProcessPoolExecutor + asyncio |
-| Containerization| Docker                        |
-| CI/CD           | GitHub Actions                |
-| Load Testing    | Apache JMeter                 |
+- Export this report as PDF
+- Add student name, student ID, repository URL, and cloud API URL
+- Run local JMeter test and paste dashboard metrics into Section 7
+- Run cloud JMeter test and paste dashboard metrics into Section 7
+- Include `jmeter/image_classification_load_test.jmx`
+- Include `postman/image-classification-api.postman_collection.json`
+- Include the cloud cURL command for `/predict`
+- Push source code and `.github/workflows/ci-cd.yml` to GitHub

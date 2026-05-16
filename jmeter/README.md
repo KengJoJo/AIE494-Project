@@ -1,86 +1,101 @@
 # JMeter Load Testing Guide
 
+This folder contains the JMeter test plan for the image classification API.
+
 ## Prerequisites
 
-- [Apache JMeter 5.6+](https://jmeter.apache.org/download_jmeter.cgi) installed
-- The API running (locally via Docker or on Hugging Face Spaces)
-- An image file locally available on your machine
+- Apache JMeter 5.6 or newer
+- The API running locally or on Hugging Face Spaces
+- A local test image, for example `test_cat.jpg`
 
-## A. Start the API with Docker
+## Start Local API
 
-```bash
-docker compose up --build -d
-```
-
-The API will be available at `http://localhost:8000`.
-
-## B. Open JMeter GUI
+Using Python:
 
 ```bash
-jmeter
+uvicorn app.main:app --host 0.0.0.0 --port 8000
 ```
 
-Then open `jmeter/image_classification_load_test.jmx`.
+Using Docker:
 
-## C. Run the Test Plan
+```bash
+docker compose up --build
+```
 
-### Option 1: JMeter GUI (for debugging)
+The local API should be available at:
 
-1. Open the `.jmx` file in JMeter GUI
-2. Click the green **Start** button
-3. View results in **View Results Tree** or **Summary Report**
+```text
+http://localhost:8000
+```
 
-### Option 2: CLI (recommended for actual load testing)
+## Run Local Load Test
 
-**Local Docker test:**
 ```bash
 jmeter -n -t jmeter/image_classification_load_test.jmx \
   -JPROTOCOL=http -JHOST=localhost -JPORT=8000 \
-  -JIMAGE_PATH="C:/path/to/image.jpg" \
+  -JIMAGE_PATH="C:/Work/AIE494/ProjectAIE494/test_cat.jpg" \
   -l results/local_results.jtl \
   -e -o results/local_dashboard
 ```
 
-**Cloud test (Hugging Face Spaces):**
+Open the generated dashboard:
+
+```text
+results/local_dashboard/index.html
+```
+
+## Run Cloud Load Test
+
+The Hugging Face Spaces hostname for this project is
+`kengjojo-aie494-project.hf.space`.
+
 ```bash
 jmeter -n -t jmeter/image_classification_load_test.jmx \
-  -JHOST=<your-hf-space-url-without-https> \
-  -JPORT=443 \
-  -JPROTOCOL=https \
-  -JIMAGE_PATH="C:/path/to/image.jpg" \
+  -JPROTOCOL=https -JHOST=kengjojo-aie494-project.hf.space -JPORT=443 \
+  -JIMAGE_PATH="C:/Work/AIE494/ProjectAIE494/test_cat.jpg" \
   -l results/cloud_results.jtl \
   -e -o results/cloud_dashboard
 ```
 
-## D. Generate HTML Dashboard
+Open the generated dashboard:
 
-If you already have a `.jtl` file and want to regenerate the dashboard:
+```text
+results/cloud_dashboard/index.html
+```
+
+## Regenerate Dashboard from JTL
+
+The output directory must be empty or non-existent.
 
 ```bash
 jmeter -g results/local_results.jtl -o results/local_dashboard
 ```
 
-> **Note:** The output directory must be empty or non-existent.
+## Configurable Variables
 
-## E. Configurable Variables
+| Variable | Default | Description |
+| --- | --- | --- |
+| `PROTOCOL` | `http` | `http` or `https` |
+| `HOST` | `localhost` | Target hostname |
+| `PORT` | `8000` | Target port |
+| `IMAGE_PATH` | none | Absolute path to the image file |
 
-| Variable    | Default         | Description                    |
-|-------------|-----------------|--------------------------------|
-| `HOST`      | `localhost`     | Target host                    |
-| `PORT`      | `8000`          | Target port                    |
-| `PROTOCOL`  | `http`          | Protocol (http/https)          |
-| `IMAGE_PATH`| *none*            | Path to the test image      |
+## Test Plan Details
 
-Override via CLI:
-```bash
-jmeter -n -t jmeter/image_classification_load_test.jmx \
-  -JHOST=my-space.hf.space -JPORT=443 -JPROTOCOL=https
-```
+- 50 concurrent users
+- 10 second ramp-up
+- 10 loops per user
+- 500 total requests
+- Endpoint: `POST /predict`
+- Request body: `multipart/form-data` with the `file` field
+- Assertions: HTTP 200 and JSON `predictions` exists
 
-## F. Test Plan Details
+## Metrics to Copy into the Report
 
-- **Thread Group:** 50 concurrent users
-- **Ramp-up:** 10 seconds
-- **Loop Count:** 10 (total 500 requests)
-- **Endpoint:** `POST /predict` with multipart/form-data
-- **Assertions:** HTTP 200 + JSON `$.predictions` exists
+After opening the HTML dashboard, copy these values into the report:
+
+- Total requests
+- Throughput
+- Average response time
+- P95 latency
+- Error rate
