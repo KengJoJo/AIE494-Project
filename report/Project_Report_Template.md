@@ -239,8 +239,8 @@ Fill this table after running JMeter and opening the generated HTML dashboard.
 
 | Environment | Total Requests | Throughput | Avg Response Time | P95 Latency | Error Rate |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| Local Docker/API | 500 | [Fill] | [Fill] | [Fill] | [Fill] |
-| Hugging Face Spaces | 500 | [Fill] | [Fill] | [Fill] | [Fill] |
+| Local Docker/API | Not executed in final run | - | - | - | - |
+| Hugging Face Spaces | 500 | 5.32 req/s | 7,946.01 ms | 9,768.00 ms | 0.20% |
 
 ### Performance Analysis
 
@@ -249,11 +249,15 @@ The expected local bottleneck is CPU inference capacity. The API uses
 capacity will queue. This design keeps the FastAPI event loop responsive while
 the CPU-bound model work runs in separate processes.
 
-Cloud performance is expected to be slower than local execution because Hugging
-Face Spaces free CPU hardware has limited resources and network latency is
-added. If throughput is insufficient, possible improvements include increasing
-worker count, moving to a larger CPU instance, using GPU inference, adding
-request limits, or deploying multiple replicas behind a load balancer.
+The final cloud load test completed 500 requests with 499 successful responses
+and 1 failed response. Throughput was 5.32 requests per second, average response
+time was 7,946.01 ms, and P95 latency was 9,768.00 ms. This is slower than the
+single-image local benchmark because Hugging Face Spaces runs on limited shared
+CPU resources, adds network latency, and must queue concurrent requests beyond
+the available worker capacity. If throughput is insufficient, possible
+improvements include increasing worker count, moving to a larger CPU instance,
+using GPU inference, adding request limits, or deploying multiple replicas
+behind a load balancer.
 
 ## 8. Testing Artifacts
 

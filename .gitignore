@@ -34,8 +34,7 @@ results/*.csv
 results/*.md
 !results/benchmark_results.csv
 !results/benchmark_results.md
-# Keep JMeter HTML dashboards available for submission when generated.
-# They can be large, so delete them before committing if your instructor wants a clean source-only repo.
+results/*dashboard*/
 
 # Local/generated report drafts
 report/*.html
